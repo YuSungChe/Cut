@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>TXT 排序與切割工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f7f9fa;
+            color: #333;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="file"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.success {
+            background-color: #2ecc71;
+        }
+        button.success:hover {
+            background-color: #27ae60;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #e74c3c;
+            white-space: pre-line;
+        }
+        .success-text {
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>TXT 排序與切割工具</h2>
+
+    <!-- 步驟 1: 選擇檔案 -->
+    <div class="section">
+        <label for="fileInput">1. 選擇要讀取的 TXT 檔案：</label>
+        <input type="2" type="file" id="fileInput" accept=".txt">
+        <div id="fileStatus" class="status"></div>
+    </div>
+
+    <!-- 步驟 2: 升序排列 -->
+    <div class="section">
+        <label>2. 將內容升序排列：</label>
+        <button id="sortBtn" onclick="sortData()">按內容升序排列</button>
+        <div id="sortStatus" class="status"></div>
+    </div>
+
+    <!-- 步驟 3: 切割並下載 -->
+    <div class="section">
+        <label for="chunkSize">3. 設定每個檔案要包含幾筆（行）資料：</label>
+        <input type="number" id="chunkSize" min="1" value="10">
+        <button class="success" id="splitBtn" onclick="splitAndDownload()">執行切割並自動下載</button>
+        <div id="splitStatus" class="status"></div>
+    </div>
+
+    <script>
+        let fileLines = [];
+
+        // 讀取檔案
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                // 依照換行符號分割成陣列，過濾掉完全空白的多餘空行（可依需求保留）
+                fileLines = content.split(/\r?\n/);
+                document.getElementById('fileStatus').innerHTML = `<span class="success-text">成功載入檔案！總共有 ${fileLines.length} 行資料。</span>`;
+                document.getElementById('sortStatus').innerText = '';
+                document.getElementById('splitStatus').innerText = '';
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        // 升序排列
+        function sortData() {
+            if (fileLines.length === 0) {
+                alert('請先上傳 TXT 檔案！');
+                return;
+            }
+            // 使用 localeCompare 支援中文筆劃/拼音與英文的正確排序
+            fileLines.sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+            document.getElementById('sortStatus').innerHTML = '<span class="success-text">排序完成！資料已按升序排列。</span>';
+        }
+
+        // 切割並下載
+        function splitAndDownload() {
+            if (fileLines.length === 0) {
+                alert('請先上傳並排序 TXT 檔案！');
+                return;
+            }
+
+            const chunkSize = parseInt(document.getElementById('chunkSize').value);
+            if (isNaN(chunkSize) || chunkSize <= 0) {
+                alert('請輸入有效的切割筆數（大於 0 的數字）！');
+                return;
+            }
+
+            let totalFiles = Math.ceil(fileLines.length / chunkSize);
+
+            for (let i = 0; i < totalFiles; i++) {
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+                const chunk = fileLines.slice(start, end).join('\n');
+
+                // 建立 Blob 檔案物件
+                const blob = new Blob([chunk], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                // 動態建立超連結並自動點擊下載
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `part_${i + 1}.txt`;
+                document.body.appendChild(a);
+                a.click();
+
+                // 清理
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            document.getElementById('splitStatus').innerHTML = `<span class="success-text">切割完成！已自動產生並下載 ${totalFiles} 個檔案。</span>`;
+        }
+    </script>
+</body>
+</html>
